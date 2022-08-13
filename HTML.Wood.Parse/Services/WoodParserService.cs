@@ -10,7 +10,7 @@ namespace HTML.Wood.Parse.Services
 {
     internal class WoodParserService : IDisposable
     {
-        private static volatile int jobIteration = 0;
+        private static int jobIteration = 0;
 
         private const string requestAddress = "https://lesegais.ru/open-area/graphql";
         private const int RowsInPage = 20000;
@@ -20,30 +20,20 @@ namespace HTML.Wood.Parse.Services
         private readonly DbService _dbService = new DbService();
 
         private static Random random = new Random();
+        private static bool doWork = true;
 
-        private Timer _timer;
-
-        private static volatile int jobIsStarted = 0;
-
-        public void StartJob()
+        public async Task StartJob()
         {
-            var timerCallback = new TimerCallback(ParserWork);
-            _timer = new Timer(timerCallback, null, TimeSpan.Zero, TimeIteration);
+            while (doWork)
+            {
+                await ParserWork();
+                await Task.Delay(TimeIteration);
+            }
         }
 
-        private async void ParserWork(object _)
+        private async Task ParserWork()
         {
-            var currentJobIteration = jobIteration;
-            Interlocked.Increment(ref jobIteration);
-
-            if (jobIsStarted > 0)
-            {
-                Console.WriteLine($"Job iteration {currentJobIteration} skipped");
-                return;
-            }
-
-            Console.WriteLine($"Job iteration {currentJobIteration} started");
-            Interlocked.Increment(ref jobIsStarted);
+            Console.WriteLine($"Job iteration {jobIteration} started");
 
             var stopwatch = Stopwatch.StartNew();
 
@@ -82,9 +72,7 @@ namespace HTML.Wood.Parse.Services
                 Console.WriteLine(e.Message);
             }
 
-            Console.WriteLine($"Job iteration {currentJobIteration} ended on {stopwatch.Elapsed.TotalSeconds:0.00} seconds");
-
-            Interlocked.Decrement(ref jobIsStarted);
+            Console.WriteLine($"Job iteration {jobIteration++} ended on {stopwatch.Elapsed.TotalSeconds:0.00} seconds");
         }
 
         private int GetPageCount(int total)
@@ -186,8 +174,8 @@ namespace HTML.Wood.Parse.Services
 
         public void Dispose()
         {
+            doWork = true;
             tokenSource?.Cancel();
-            _timer?.Dispose();
             _dbService?.Dispose();
         }
     }
