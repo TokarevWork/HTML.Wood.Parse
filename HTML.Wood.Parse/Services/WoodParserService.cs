@@ -174,7 +174,7 @@ namespace HTML.Wood.Parse.Services
 
         public void Dispose()
         {
-            doWork = true;
+            doWork = false;
             tokenSource?.Cancel();
             _dbService?.Dispose();
         }
